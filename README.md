@@ -1,4 +1,4 @@
-# MEHB-fMRI
+# MEHBfMRI
 SPM tools for preprocessing fMRI series scanned using HyperBand and Multi Echo
 
 This toolbox is based on the SPM12 slice timing correction tool. Please make sure SPM12 (freely downloadable from https://www.fil.ion.ucl.ac.uk/spm/) is properly installed and running in Matlab.
