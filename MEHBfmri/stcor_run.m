@@ -110,7 +110,7 @@ for k = 1:nslices
     for p = 1:nimgo
         Vout(p) = spm_write_plane(Vout(p),slices(:,:,p),k);
         
-        out=[out; spm_file(job.scans{p},'prefix',job.prefix)];
+        out=[out; spm_file(job.scans(p),'prefix',job.prefix)];
     end
     spm_progress_bar('Set',k);
 end
