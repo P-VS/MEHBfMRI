@@ -1,5 +1,5 @@
 # MEHBfMRI
-SPM tools for preprocessing fMRI series scanned using HyperBand and Multi Echo
+SPM tools for preprocessing fMRI series scanned using Simultaneous MultiSlice (SMS) / MultiBand / HyperBand and Multi Echo
 
 This toolbox is based on the SPM12 slice timing correction tool. Please make sure SPM12 (freely downloadable from https://www.fil.ion.ucl.ac.uk/spm/) is properly installed and running in Matlab.
 
@@ -19,4 +19,4 @@ In multi echo fMRI, up to 5 echoes are measured per TR. Rather than fitting T2* 
 2. Slice time correction for HyperBand
 Slice timing is done based on a matrix containing the slice timings for each file. These slice timings can be found in the json file. This json file is created during the conversion of your data from dicom to nifti using toolboxes such as dicm2nii (https://github.com/xiangruili/dicm2nii).
 
-This toolbox is written by dr. Peter Van Schuerbeek from UZ Brussel. 
+This toolbox is written by dr. Peter Van Schuerbeek from UZ Brussel (VUB, Belgium). 
