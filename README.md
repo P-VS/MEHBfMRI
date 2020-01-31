@@ -10,7 +10,7 @@ Launch the toolbox in SPMT12 -> BATCH -> SPM -> tools -> Multi echo & HyperBand.
 
 The toolbox contains 2 subfunctions:
 1. Combine echoes for Multi-Echo fMRI
-In multi echo fMRI, up to 5 echoes are measured per TR. Rather than fitting T2* per voxel (which is time consuming), the echo images can be combined per TR as S(t)=sum(wi.Si(t)) with i the echo number (1,2..), Si the ith echo image and wi the ith weighting factor. wi can be chosen as
+In multi echo fMRI, up to 5 echoes are measured per TR. Rather than fitting T2* per voxel (which is time consuming), the echo images can be combined per TR as S(t)=sum(wi.Si(t))/sum(wi) with i the echo number (1,2..), Si the ith echo image and wi the ith weighting factor. wi can be chosen as
   1. AVE: wi=1 (simple averaging)
   2. BS: wi=TEi (BOLD sensitivity)
   3. tSNR: wi=tSNRi (temporal SNR)
