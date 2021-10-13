@@ -1,6 +1,6 @@
-function [out]=stcor_run(job)
+function [tout]=stcor_run(job)
 
-out=job.scans;
+tout=cell(numel(job.scans),1);
 
 Vin     = spm_vol(job.scans{1});
 nslices = Vin(1).dim(3);
@@ -110,7 +110,7 @@ for k = 1:nslices
     for p = 1:nimgo
         Vout(p) = spm_write_plane(Vout(p),slices(:,:,p),k);
         
-        out(p)=spm_file(job.scans(p),'prefix',job.prefix);%[out; spm_file(job.scans(p),'prefix',job.prefix)];
+        tout(p)=spm_file(job.scans(p),'prefix',job.prefix);
     end
     spm_progress_bar('Set',k);
 end

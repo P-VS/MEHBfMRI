@@ -19,6 +19,8 @@ mask(tmp)=1;
 
 wf=ones(dim(1),dim(2),dim(3),ne);
 
+out=cell(nt,1);
+
 if job.method==2 || job.method==3
     for ei=1:ne
         tdat=zeros(dim(1),dim(2),dim(3),nt);
@@ -39,7 +41,6 @@ end
 
 spm_progress_bar('Init',nt,'Combine TE','Volumes done');
 
-out=[];
 for ti=1:nt
     etdat=zeros(dim(1),dim(2),dim(3));
     endat=zeros(dim(1),dim(2),dim(3));
@@ -96,7 +97,7 @@ for ti=1:nt
     VI=rmfield(VI,'pinfo');
     VI=spm_write_vol(VI,edat);
     
-    out=[out;spm_file(job.tedat(1).func(ti),'prefix','te')];
+    out(ti)=spm_file(job.tedat(1).func(ti),'prefix','te');
     
     spm_progress_bar('Set',ti);
 end

@@ -61,7 +61,7 @@ method.labels = {
                  'tBS'
 }';
 method.values = {0 1 2 3};
-method.val    = {3};
+method.val    = {1};
 
 %--------------------------------------------------------------------------
 % Corregistration
