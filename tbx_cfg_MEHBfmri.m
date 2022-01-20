@@ -116,8 +116,8 @@ SliceT.num         = [1 Inf];
 
 TR         = cfg_entry;
 TR.tag     = 'TR';
-TR.name    = 'TR (ms)';
-TR.help    = {'Enter the TR in ms.'};
+TR.name    = 'TR (s)';
+TR.help    = {'Enter the TR in s.'};
 TR.strtype = 'r';
 TR.num     = [1 1];
 
