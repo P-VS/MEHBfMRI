@@ -8,8 +8,8 @@ nslices = Vin(1).dim(3);
 SliceT = job.SliceT;
 
 TR=job.TR;
-if TR<10
-    TR=TR*1000;
+if TR>10
+    TR=TR/1000;
 end
     
 if nslices ~= numel(SliceT)
@@ -52,7 +52,7 @@ spm_progress_bar('Init',nslices,task,'planes complete');
 % reference slice and the current slice by using slice times
 % supplied in sliceorder vector
 rtime=SliceT(job.refslice);
-shiftamount = (SliceT - rtime)*1000/TR;
+shiftamount = (SliceT - rtime)/TR;
 
 % For loop to perform correction slice by slice
 for k = 1:nslices
