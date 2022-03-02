@@ -98,7 +98,7 @@ scans.tag     = 'scans';
 scans.name    = 'Session';
 scans.help    = {'Select images to slice-time correct.'};
 scans.filter  = 'image';
-scans.ufilter = '.*'; %
+scans.ufilter = '.*'; 
 scans.num     = [1 Inf];
 scans.preview = @(f) spm_check_registration(char(f));
 
@@ -109,7 +109,7 @@ scans.preview = @(f) spm_check_registration(char(f));
 SliceT             = cfg_entry;
 SliceT.tag         = 'SliceT';
 SliceT.name        = 'Slice Timings';
-SliceT.help        = {'Give the slice timings (see json file)'};
+SliceT.help        = {'Give the slice timings in seconds (see json file)'};
 SliceT.val         = {};
 SliceT.strtype     = 'r';
 SliceT.num         = [1 Inf];
@@ -124,9 +124,7 @@ TR.num     = [1 1];
 refslice         = cfg_entry;
 refslice.tag     = 'refslice';
 refslice.name    = 'Reference Slice';
-refslice.help    = {'Enter the reference slice.'
-                    ''
-                    'If slice times are provided instead of slice indices in the previous item, this value should represent a reference time (in ms) instead of the slice index of the reference slice.'};
+refslice.help    = {'Enter the reference slice.'};
 refslice.strtype = 'r';
 refslice.num     = [1 1];
 

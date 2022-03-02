@@ -2,8 +2,20 @@ function [tout]=stcor_run(job)
 
 tout=cell(numel(job.scans),1);
 
-Vin     = spm_vol(job.scans{1});
+[pth,name,ext] = fileparts(job.scans{1});
+
+Vin     = spm_vol(fullfile(pth,[name '.nii']));
 nslices = Vin(1).dim(3);
+
+refvol = spm_read_vols(Vin(1));
+mask = refvol>max(refvol,[],'all')*0.02;
+
+%maskim = fullfile(pth,'stcmask.nii');
+
+%Vm = Vin;
+%Vm.fname = maskim;
+%Vm = spm_create_vol(Vm);
+%Vm = spm_write_vol(Vm,mask);
 
 SliceT = job.SliceT;
 
@@ -18,8 +30,10 @@ end
 
 %-Slice timing correction
 %==========================================================================
-for i=1:numel(job.scans)
-    Vin(i)   = spm_vol(job.scans{i});
+if numel(job.scans)>1
+    for i=1:numel(job.scans)
+        Vin(i)   = spm_vol(job.scans{i});
+    end
 end
 nimgo = numel(Vin);
 nimg  = 2^(floor(log2(nimgo))+1);
@@ -39,13 +53,6 @@ for k=1:nimgo
     Vout(k).descrip = [desc 'acq-fix ref-slice ' num2str(job.refslice)];
 end
 Vout = spm_create_vol(Vout);
-
-% Set up [time x voxels] matrix for holding image info
-slices = zeros([Vout(1).dim(1:2) nimgo]);
-stack  = zeros([nimg Vout(1).dim(1)]);
-
-task = sprintf('Correcting acquisition delay: session %d', 1);
-spm_progress_bar('Init',nslices,task,'planes complete');
         
 % Compute shifting amount from reference slice and slice timings
 % Compute time difference between the acquisition time of the
@@ -55,65 +62,111 @@ rtime=SliceT(job.refslice);
 shiftamount = (SliceT - rtime)/TR;
 
 % For loop to perform correction slice by slice
-for k = 1:nslices
-        
-    % Read in slice data
-    B  = spm_matrix([0 0 k]);
+
+do_spm_hb_stc(mask,Vout,Vin,nimgo,nimg,nslices,shiftamount,job.scans) 
+
+for p = 1:numel(job.scans)
+    tout(p)=spm_file(job.scans(p),'prefix',job.prefix);
+end
+
+fprintf('%-40s: %30s\n','Completed',spm('time'))  %-#
+
+%%-------------------------------------------------------------------------------------------
+
+function do_spm_hb_stc(mask,Vout,Vin,nimgo,nimg,nslices,shiftamount,scans)
+
+fprintf('Reading the data\n')
+
+% Set up [time x voxels] matrix for holding image info
+vol = zeros([Vin(1).dim(1:3) nimgo]);
+nvol=vol;
+
+if numel(scans)>1
     for m=1:nimgo
-        slices(:,:,m) = spm_slice_vol(Vin(m),B,Vin(1).dim(1:2),1);
+        [pth,name,ext]=fileparts(scans{m});
+        vol(:,:,:,m) = niftiread(fullfile(pth,[name '.nii']));
     end
+else
+    [pth,name,ext]=fileparts(scans{1});
+    vol = niftiread(fullfile(pth,[name '.nii']));
+end
+
+task = sprintf('Correcting acquisition delay: session %d', 1);
+spm_progress_bar('Init',nslices,task,'planes complete');
+fprintf('Start Slice Time correction\n')
+
+for k=1:nslices
+
+    slices = vol(:,:,k,:);
+
+    slicemask = mask(:,:,k);
+    tmp = find(slicemask>0);
+
+    if numel(tmp)>0
+
+        stack  = zeros([nimg numel(tmp)]);
+
+        rslices = reshape(slices,[Vout(1).dim(1)*Vout(1).dim(2) nimgo]);
+        mslices=rslices(tmp,:);
         
-    % Set up shifting variables
-    len     = size(stack,1);
-    phi     = zeros(1,len);
+        % Set up shifting variables
+        len     = size(stack,1);
+        phi     = zeros(1,len);
         
-    % Check if signal is odd or even -- impacts how Phi is reflected
-    %  across the Nyquist frequency. Opposite to use in pvwave.
-    OffSet  = 0;
-    if rem(len,2) ~= 0, OffSet = 1; end
+        % Check if signal is odd or even -- impacts how Phi is reflected
+        %  across the Nyquist frequency. Opposite to use in pvwave.
+        OffSet  = 0;
+        if rem(len,2) ~= 0, OffSet = 1; end
         
-    % Phi represents a range of phases up to the Nyquist frequency
-    % Shifted phi 1 to right.
-    for f = 1:len/2
-        phi(f+1) = -1*shiftamount(k)*2*pi/(len/f);
-    end
+        % Phi represents a range of phases up to the Nyquist frequency
+        % Shifted phi 1 to right.
+        for f = 1:len/2
+            phi(f+1) = -1*shiftamount(k)*2*pi/(len/f);
+        end
         
-    % Mirror phi about the center
-    % 1 is added on both sides to reflect Matlab's 1 based indices
-    % Offset is opposite to program in pvwave again because indices are 1 based
-    phi(len/2+1+1-OffSet:len) = -fliplr(phi(1+1:len/2+OffSet));
-        
-    % Transform phi to the frequency domain and take the complex transpose
-    shifter = [cos(phi) + sin(phi)*sqrt(-1)].';
-    shifter = shifter(:,ones(size(stack,2),1)); % Tony's trick
-        
-    % Loop over columns
-    for i=1:Vout(1).dim(2)
+        % Mirror phi about the center
+        % 1 is added on both sides to reflect Matlab's 1 based indices
+        % Offset is opposite to program in pvwave again because indices are 1 based
+        phi(len/2+1+1-OffSet:len) = -fliplr(phi(1+1:len/2+OffSet));
             
+        % Transform phi to the frequency domain and take the complex transpose
+        shifter = [cos(phi) + sin(phi)*sqrt(-1)].';
+        shifter = shifter(:,ones(size(stack,2),1)); % Tony's trick
+         
         % Extract columns from slices
-        stack(1:nimgo,:) = reshape(slices(:,i,:),[Vout(1).dim(1) nimgo])';
+        stack(1:nimgo,:) = mslices';
             
         % Fill in continous function to avoid edge effects
         for g=1:size(stack,2)
             stack(nimgo+1:end,g) = linspace(stack(nimgo,g),...
             stack(1,g),nimg-nimgo)';
         end
-            
+        
         % Shift the columns
         stack = real(ifft(fft(stack,[],1).*shifter,[],1));
             
         % Re-insert shifted columns
-        slices(:,i,:) = reshape(stack(1:nimgo,:)',[Vout(1).dim(1) 1 nimgo]);
-    end
-        
-    % Write out the slice for all volumes
-    for p = 1:nimgo
-        Vout(p) = spm_write_plane(Vout(p),slices(:,:,p),k);
-        
-        tout(p)=spm_file(job.scans(p),'prefix',job.prefix);
-    end
-    spm_progress_bar('Set',k);
-end
-spm_progress_bar('Clear');
+        rslices(tmp,:) = stack(1:nimgo,:)';
+        newslices = reshape(rslices,[Vin(1).dim(1:2) nimgo]);
 
-fprintf('%-40s: %30s\n','Completed',spm('time'))                        %-#
+        nvol(:,:,k,:) = newslices;
+    end
+
+    spm_progress_bar('Set',k);
+    fprintf(['Done slice timme correction for slice ' num2str(k) '\n'])
+end
+
+spm_progress_bar('Clear');
+    
+% Write out the slice for all volumes
+%for p = 1:nimgo
+%    Vout(p) = spm_write_plane(Vout(p),nslices(:,:,p),k);
+%end
+
+if numel(scans)>1
+    for p = 1:nimgo
+        niftiwrite(nvol(:,:,:,p),Vout(p).fname)
+    end
+else
+    niftiwrite(nvol,Vout(1).fname)
+end
