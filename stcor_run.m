@@ -90,6 +90,7 @@ if numel(scans)>1
 else
     [pth,name,ext]=fileparts(scans{1});
     vol = niftiread(fullfile(pth,[name '.nii']));
+    volhdr(1) = niftiinfo(fullfile(pth,[name '.nii']));
 end
 
 task = sprintf('Correcting acquisition delay: session %d', 1);
