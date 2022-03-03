@@ -85,6 +85,7 @@ if numel(scans)>1
     for m=1:nimgo
         [pth,name,ext]=fileparts(scans{m});
         vol(:,:,:,m) = niftiread(fullfile(pth,[name '.nii']));
+        volhdr(m) = niftiinfo(fullfile(pth,[name '.nii']));
     end
 else
     [pth,name,ext]=fileparts(scans{1});
@@ -165,8 +166,8 @@ spm_progress_bar('Clear');
 
 if numel(scans)>1
     for p = 1:nimgo
-        niftiwrite(nvol(:,:,:,p),Vout(p).fname)
+        niftiwrite(nvol(:,:,:,p),Vout(p).fname,volhdr(p))
     end
 else
-    niftiwrite(nvol,Vout(1).fname)
+    niftiwrite(nvol,Vout(1).fname,volhdr(1))
 end
