@@ -85,12 +85,10 @@ if numel(scans)>1
     for m=1:nimgo
         [pth,name,ext]=fileparts(scans{m});
         vol(:,:,:,m) = niftiread(fullfile(pth,[name '.nii']));
-        volhdr(m) = niftiinfo(fullfile(pth,[name '.nii']));
     end
 else
     [pth,name,ext]=fileparts(scans{1});
     vol = niftiread(fullfile(pth,[name '.nii']));
-    volhdr(1) = niftiinfo(fullfile(pth,[name '.nii']));
 end
 
 task = sprintf('Correcting acquisition delay: session %d', 1);
@@ -160,15 +158,6 @@ end
 
 spm_progress_bar('Clear');
     
-% Write out the slice for all volumes
-%for p = 1:nimgo
-%    Vout(p) = spm_write_plane(Vout(p),nslices(:,:,p),k);
-%end
-
-if numel(scans)>1
-    for p = 1:nimgo
-        niftiwrite(nvol(:,:,:,p),Vout(p).fname,volhdr(p))
-    end
-else
-    niftiwrite(nvol,Vout(1).fname,volhdr(1))
+for p = 1:nimgo
+    Vout(p) = spm_write_vol(Vout(p),nvol(:,:,:,p));
 end
