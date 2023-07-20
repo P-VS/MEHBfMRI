@@ -53,15 +53,19 @@ method.help    = {
                   'BS: BOLD sensitivity (wi=TEi)'
                   'tSNR: temporal SNR (wi=tSNRi)'
                   'tBS: temporal BOLD sensitivity (wi=tSNRi * TEi)'
+                  'T2* weighted: T2* weighted based on a T2* map determined per dynamic (wi(t)=TEi * exp(-TEi/T2*(t)))'
+                  'T2* mapping: T2* mapping per dynamic'
 }';
 method.labels = {
                  'AVE'
                  'BS'
                  'tSNR'
                  'tBS'
+                 'T2* weighted'
+                 'T2* mapping'
 }';
-method.values = {0 1 2 3};
-method.val    = {1};
+method.values = {0 1 2 3 4 5};
+method.val    = {5};
 
 %--------------------------------------------------------------------------
 % Corregistration

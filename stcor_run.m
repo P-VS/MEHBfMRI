@@ -35,11 +35,11 @@ if Vin(1).dim(3) ~= nslices
 end
 
 % Create new header files
-Vout  = Vin;
 for k=1:nimgo
+    Vout(k)  = Vin(k);
     Vout(k).fname  = spm_file(Vin(k).fname, 'prefix', job.prefix);
     Vout(k).descrip = 'Slice time correction';
-    Vout(k).n = [k 1];
+    Vout(k).n = [1 1];
 end
         
 % Compute shifting amount from reference slice and slice timings
@@ -144,4 +144,6 @@ end
 
 spm_progress_bar('Clear');
     
-Vout = MEHB_write_vol_4d(Vout,nvol);
+for k=1:nimgo
+    Vout(k) = MEHB_write_vol_4d(Vout(k),nvol(:,:,:,k));
+end

@@ -5,101 +5,224 @@ warning off;
 
 spm_defaults;
 
-ne=numel(job.tedat);
-nt=numel(job.tedat(1).func);
+nechoes=numel(job.tedat);
+ntime=numel(job.tedat(1).func);
 
-V=spm_vol(job.tedat(1).func{1});
-im=spm_read_vols(V);
+out=cell(ntime,1);
 
-dim=size(im);
+for ie=1:nechoes
+    te(ie) = job.tedat(ie).te;
 
-mask=zeros(dim(1),dim(2),dim(3));
-tmp=find(im>0.10*max(im(:)));
-mask(tmp)=1;
-
-wf=ones(dim(1),dim(2),dim(3),ne);
-
-out=cell(nt,1);
-
-if job.method==2 || job.method==3
-    for ei=1:ne
-        tdat=zeros(dim(1),dim(2),dim(3),nt);
-        for ti=1:nt
-            V=spm_vol(job.tedat(ei).func{ti});
-            tdat(:,:,:,ti)=spm_read_vols(V);
+    for it=1:ntime
+        Vfunc=spm_vol(job.tedat(ie).func{it});
+        if ie==1 && it==1
+            voldim = Vfunc.dim;
+            tefuncdat = zeros(voldim(1),voldim(2),voldim(3),ntime,nechoes);
         end
-        
-        wf(:,:,:,ei)=mask.*mean(tdat,4)./std(tdat,0,4);
+
+        tefuncdat(:,:,:,it,ie) = spm_read_vols(Vfunc);
     end
 end
 
-if job.method==1 || job.method==3
-    for ei=1:ne
-        wf(:,:,:,ei)=wf(:,:,:,ei)*job.tedat(ei).te/1000;
-    end    
-end
+funcdat = zeros(voldim(1),voldim(2),voldim(3),ntime);
 
-spm_progress_bar('Init',nt,'Combine TE','Volumes done');
+switch job.method
+    case 0 %Average (wi=1/nechoes)
 
-for ti=1:nt
-    etdat=zeros(dim(1),dim(2),dim(3));
-    endat=zeros(dim(1),dim(2),dim(3));
-    
-    for ei=1:ne
-        if job.correg==1
-            fprintf(['Time ' num2str(ti) ' echo ' num2str(ei) '\n'])
+        funcdat = sum(tefuncdat,5) ./ nechoes;
+
+        cmethod = 'average';
+
+    case 1 %BS (wi=TEi/sum(TEi))
+
+        sum_weights = sum(te,'all');
         
-            if ei==1
-                V=spm_vol(job.tedat(ei).func{ti});
-                tdat=spm_read_vols(V);
-            else
-                job09.ref               = job.tedat(1).func(ti);
-                job09.source            = job.tedat(ei).func(ti);
-                job09.other             = job.tedat(ei).func(ti);
-                job09.eoptions.cost_fun = 'nmi';
-                job09.eoptions.sep      = [4 2];
-                job09.eoptions.tol      = [0.02 0.02 0.02 0.001 0.001 0.001 0.01 0.01 0.01 0.001 0.001 0.001];
-                job09.eoptions.fwhm     = [7 7];
-                job09.roptions.interp   = 0;
-                job09.roptions.wrap     = [0 0 0];
-                job09.roptions.mask     = 0;
-                job09.roptions.prefix   = 'r';
-
-                reifmri = spm_run_coreg(job09);
-            
-                V=spm_vol(reifmri.rfiles{1});
-                tdat=spm_read_vols(V);
-            
-                [path nm ext]=fileparts(reifmri.rfiles{1});
-                delete(fullfile(path,[nm '.nii']));
+        for ti=1:ntime
+            for ne=1:nechoes
+                functidat = tefuncdat(:,:,:,ti,ne);
+                functidat = functidat .* te(ne);
+                functidat = functidat ./ sum_weights;
+        
+                funcdat(:,:,:,ti) = funcdat(:,:,:,ti)+functidat; 
             end
-        else
-            V=spm_vol(job.tedat(ei).func{ti});
-            tdat=spm_read_vols(V);
         end
+
+        cmethod = 'BS';
+
+    case 2 %tSNR (wi=tSNRi/sum(tSNRi)
         
-        if ~(job.method==1)
-            etdat=etdat+wf(:,:,:,ei).*tdat;
-            endat=endat+wf(:,:,:,ei);
-        else
-            etdat=etdat+wf(:,:,:,ei).*tdat.*tdat;
-            endat=endat+wf(:,:,:,ei).*tdat;
+        mask = MEHB_mask(tefuncdat(:,:,:,:,1));
+        mask_ind = find(mask>0);
+
+        weights = zeros(voldim(1)*voldim(2)*voldim(3),nechoes);
+
+        meantei = reshape(mean(tefuncdat,4),[voldim(1)*voldim(2)*voldim(3),nechoes]);
+        stdtei = reshape(std(tefuncdat,0,4),[voldim(1)*voldim(2)*voldim(3),nechoes]);
+        
+        weights(mask_ind,:) = meantei(mask_ind,:) ./ stdtei(mask_ind,:);
+
+        weights = reshape(weights,[voldim(1),voldim(2),voldim(3),nechoes]);
+        
+        sum_weights = sum(weights,4);
+        weights_mask = find(sum_weights>0);
+
+        for ti=1:ntime
+            for ne=1:nechoes
+                functidat = tefuncdat(:,:,:,ti,ne);
+                functidat = functidat .* weights(:,:,:,ne);
+                functidat(weights_mask) = functidat(weights_mask) ./ sum_weights(weights_mask);
+        
+                funcdat(:,:,:,ti) = funcdat(:,:,:,ti)+functidat; 
+            end 
         end
-    end
+
+        cmethod = 'tSNR';
+
+    case 3 %tBS (wi=tSNRi * TEi/sum(tSNRi * TEi))
+
+        mask = MEHB_mask(tefuncdat(:,:,:,:,1));
+        mask_ind = find(mask>0);
+
+        weights = zeros(voldim(1)*voldim(2)*voldim(3),nechoes);
+
+        meantei = reshape(mean(tefuncdat,4),[voldim(1)*voldim(2)*voldim(3),nechoes]);
+        stdtei = reshape(std(tefuncdat,0,4),[voldim(1)*voldim(2)*voldim(3),nechoes]);
+        
+        for ie=1:nechoes
+            weights(mask_ind,ie) = repmat(te(ie),numel(mask_ind),1) .* meantei(mask_ind,ie) ./ stdtei(mask_ind,ie);
+        end
+
+        weights = reshape(weights,[voldim(1),voldim(2),voldim(3),nechoes]);
+        
+        sum_weights = sum(weights,4);
+        weights_mask = find(sum_weights>0);
+
+        for ti=1:ntime
+            for ne=1:nechoes
+                functidat = tefuncdat(:,:,:,ti,ne);
+                functidat = functidat .* weights(:,:,:,ne);
+                functidat(weights_mask) = functidat(weights_mask) ./ sum_weights(weights_mask);
+        
+                funcdat(:,:,:,ti) = funcdat(:,:,:,ti)+functidat; 
+            end 
+        end
+
+        cmethod = 'tBS';
+
+    case 4 %T2* weigghted (wi(t)=TEi * exp(-TEi/T2*(t)),sum(TEi * exp(-TEi/T2*(t))))
+
+        mask = my_spmbatch_mask(tefuncdat(:,:,:,:,1));
+        mask_ind = find(mask>0);
+
+        %based on https://github.com/jsheunis/fMRwhy/tree/master
+        for ti=1:ntime
     
-    edat=etdat./endat;
+            tifuncdat = reshape(tefuncdat(:,:,:,ti,:),[voldim(1),voldim(2),voldim(3),nechoes]);
+
+            % Create "design matrix" X
+            X = horzcat(ones(nechoes,1), -te(:));
+        
+            t2star = zeros(voldim(1)*voldim(2)*voldim(3),1);
+        
+            Y=[];
+            for ne=1:nechoes
+                temptefuncdat = reshape(tifuncdat(:,:,:,ne),[voldim(1)*voldim(2)*voldim(3),1]);
+                Y=[Y;reshape(temptefuncdat(mask_ind,1),[1,numel(mask_ind)])];
+            end
+            Y = max(Y, 1e-11);
+        
+            % Estimate "beta matrix" by solving set of linear equations
+            beta_hat = pinv(X) * log(Y);
+             % Calculate S0 and T2star from beta estimation
+            T2star_fit = beta_hat(2, :); %is R2*
+        
+            T2star_thresh_min = 1/1500; % arbitrarily chosen, same as tedana
+            I_T2star_min = (T2star_fit < T2star_thresh_min); % vector of voxels where T2star value is negative
+            T2star_fit(I_T2star_min) = 0; % if values inside mask are zero or negative, set them to threshold_min value
+        
+            t2star(mask_ind) = T2star_fit;
+            
+            weights = zeros(voldim(1)*voldim(2)*voldim(3),nechoes);
+        
+            for ne=1:nechoes
+                weights(:,ne) = repmat(-te(ne),voldim(1)*voldim(2)*voldim(3),1) .* t2star(:,1);
+                weights(:,ne) = exp(weights(:,ne));
+                weights(:,ne) = repmat(te(ne),voldim(1)*voldim(2)*voldim(3),1) .* weights(:,ne);
+            end
+        
+            weights = reshape(weights,[voldim(1),voldim(2),voldim(3),nechoes]);
+            
+            sum_weights = sum(weights,4);
+            weights_mask = find(sum_weights>0);
+
+            for ne=1:nechoes
+                functidat = tefuncdat(:,:,:,ti,ne);
+                functidat = functidat .* weights(:,:,:,ne);
+                functidat(weights_mask) = functidat(weights_mask) ./ sum_weights(weights_mask);
+        
+                funcdat(:,:,:,ti) = funcdat(:,:,:,ti)+functidat; 
+            end 
+        end
+
+        cmethod = 'T2* weighted';
+
+    case 5 %T2* mapping
+
+        mask = my_spmbatch_mask(tefuncdat(:,:,:,:,1));
+        mask_ind = find(mask>0);
+
+        %based on https://github.com/jsheunis/fMRwhy/tree/master
+        for ti=1:ntime
     
-    [path nm ext]=fileparts(job.tedat(1).func{ti});
-    fname=['te' nm];
-    VI=V;
-    VI.fname=fullfile(path,[fname '.nii']);
-    VI.descrip='TE combined fMRI data';
-    VI=rmfield(VI,'pinfo');
-    VI=spm_write_vol(VI,edat);
-    
-    out(ti)=spm_file(job.tedat(1).func(ti),'prefix','te');
-    
-    spm_progress_bar('Set',ti);
+            tifuncdat = reshape(tefuncdat(:,:,:,ti,:),[voldim(1),voldim(2),voldim(3),nechoes]);
+
+            % Create "design matrix" X
+            X = horzcat(ones(nechoes,1), -te(:));
+        
+            t2star = zeros(voldim(1)*voldim(2)*voldim(3),1);
+        
+            Y=[];
+            for ne=1:nechoes
+                temptefuncdat = reshape(tifuncdat(:,:,:,ne),[voldim(1)*voldim(2)*voldim(3),1]);
+                Y=[Y;reshape(temptefuncdat(mask_ind,1),[1,numel(mask_ind)])];
+            end
+            Y = max(Y, 1e-11);
+        
+            % Estimate "beta matrix" by solving set of linear equations
+            beta_hat = pinv(X) * log(Y);
+             % Calculate S0 and T2star from beta estimation
+            T2star_fit = beta_hat(2, :); %is R2*
+        
+            T2star_thresh_min = 1/1500; % arbitrarily chosen, same as tedana
+            I_T2star_min = (T2star_fit < T2star_thresh_min); % vector of voxels where T2star value is negative
+            T2star_fit(I_T2star_min) = 0; % if values inside mask are zero or negative, set them to threshold_min value
+        
+            t2star(mask_ind) = T2star_fit;
+            zeromask = (t2star>0);
+
+            t2star(zeromask) = 1 ./ t2star(zeromask);
+
+            funcdat(:,:,:,ti) = reshape(t2star,[voldim(1),voldim(2),voldim(3)]);
+        end
+
+        cmethod = 'T2* mapping';
 end
 
-spm_progress_bar('Clear');
+for ti=1:ntime
+    Vfunc = spm_vol(job.tedat(1).func{ti});
+    
+    [fpath,fname,~] = fileparts(Vfunc.fname);
+    nfname = split(fname,'bold_e');
+
+    Vout = Vfunc;
+
+    Vout.fname = fullfile(fpath,['c' nfname{1} 'bold_' nfname{2} '.nii']);
+    Vout.descrip = ['combine echoes - ' cmethod];
+    Vout.pinfo = [1,0,0];
+    Vout.dt = [spm_type('float32'),spm_platform('bigend')];
+    Vout.n = [1 1];
+
+    Vout = MEHB_write_vol_4d(Vout,funcdat(:,:,:,ti));
+
+    out(ti) = {Vout.fname};
+end
