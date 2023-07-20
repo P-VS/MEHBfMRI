@@ -15,6 +15,8 @@ In multi echo fMRI, up to 5 echoes are measured per TR. Rather than fitting T2* 
   2. BS: wi=TEi (BOLD sensitivity)
   3. tSNR: wi=tSNRi (temporal SNR)
   4. tBS: wi=tSNRi*TEi (temporal BOLD sensitivity)
+  5. T2* weighted: T2* weighted based on a T2* map determined per dynamic (wi(t)=TEi * exp(-TEi/T2*(t)))
+  6. T2* mapping: T2* mapping per dynamic
 
 2. Slice time correction for HyperBand
 Slice timing is done based on a matrix containing the slice timings for each file. These slice timings can be found in the json file. This json file is created during the conversion of your data from dicom to nifti using toolboxes such as dicm2nii (https://github.com/xiangruili/dicm2nii).
