@@ -8,14 +8,7 @@ Vin     = spm_vol(fullfile(pth,[name '.nii']));
 nslices = Vin(1).dim(3);
 
 refvol = spm_read_vols(Vin(1));
-mask = refvol>max(refvol,[],'all')*0.02;
-
-%maskim = fullfile(pth,'stcmask.nii');
-
-%Vm = Vin;
-%Vm.fname = maskim;
-%Vm = spm_create_vol(Vm);
-%Vm = spm_write_vol(Vm,mask);
+mask = MEHB_mask(refvol);
 
 SliceT = job.SliceT;
 
@@ -45,14 +38,9 @@ end
 Vout  = Vin;
 for k=1:nimgo
     Vout(k).fname  = spm_file(Vin(k).fname, 'prefix', job.prefix);
-    if isfield(Vout(k),'descrip')
-        desc = [Vout(k).descrip ' '];
-    else
-        desc = '';
-    end
-    Vout(k).descrip = [desc 'acq-fix ref-slice ' num2str(job.refslice)];
+    Vout(k).descrip = 'Slice time correction';
+    Vout(k).n = [k 1];
 end
-Vout = spm_create_vol(Vout);
         
 % Compute shifting amount from reference slice and slice timings
 % Compute time difference between the acquisition time of the
@@ -83,12 +71,10 @@ nvol=vol;
 
 if numel(scans)>1
     for m=1:nimgo
-        [pth,name,ext]=fileparts(scans{m});
-        vol(:,:,:,m) = niftiread(fullfile(pth,[name '.nii']));
+        vol(:,:,:,m) = spm_read_vols(Vin(m));
     end
 else
-    [pth,name,ext]=fileparts(scans{1});
-    vol = niftiread(fullfile(pth,[name '.nii']));
+    vol = spm_read_vols(Vin);
 end
 
 task = sprintf('Correcting acquisition delay: session %d', 1);
@@ -153,11 +139,9 @@ for k=1:nslices
     end
 
     spm_progress_bar('Set',k);
-    fprintf(['Done slice timme correction for slice ' num2str(k) '\n'])
+    %fprintf(['Done slice timme correction for slice ' num2str(k) '\n'])
 end
 
 spm_progress_bar('Clear');
     
-for p = 1:nimgo
-    Vout(p) = spm_write_vol(Vout(p),nvol(:,:,:,p));
-end
+Vout = MEHB_write_vol_4d(Vout,nvol);
