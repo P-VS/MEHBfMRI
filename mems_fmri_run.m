@@ -111,7 +111,7 @@ switch job.method
 
     case 4 %T2* weigghted (wi(t)=TEi * exp(-TEi/T2*(t)),sum(TEi * exp(-TEi/T2*(t))))
 
-        mask = my_spmbatch_mask(tefuncdat(:,:,:,:,1));
+        mask = MEHB_mask(tefuncdat(:,:,:,:,1));
         mask_ind = find(mask>0);
 
         %based on https://github.com/jsheunis/fMRwhy/tree/master
@@ -168,7 +168,7 @@ switch job.method
 
     case 5 %T2* mapping
 
-        mask = my_spmbatch_mask(tefuncdat(:,:,:,:,1));
+        mask = MEHB_mask(tefuncdat(:,:,:,:,1));
         mask_ind = find(mask>0);
 
         %based on https://github.com/jsheunis/fMRwhy/tree/master
