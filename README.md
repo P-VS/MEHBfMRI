@@ -1,6 +1,8 @@
 # MEHBfMRI
 SPM tools for preprocessing fMRI series scanned using Simultaneous MultiSlice (SMS) / MultiBand / HyperBand and Multi Echo
 
+This toolbox is no longer acctively updated, but a new automatic SPM preprocessing including these scripts for single- and multi-echo fMRI with slice time correction, weighted echo combination and (ME-) ICA-based denoising can bbe found at https://github.com/P-VS/AutoSPM12_processing.
+
 This toolbox is based on the SPM12 slice timing correction tool. Please make sure SPM12 (freely downloadable from https://www.fil.ion.ucl.ac.uk/spm/) is properly installed and running in Matlab.
 
 Installation
